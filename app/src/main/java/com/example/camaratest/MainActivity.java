@@ -1,12 +1,15 @@
 package com.example.camaratest;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
 
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
@@ -16,6 +19,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -39,16 +43,35 @@ public class MainActivity extends AppCompatActivity {
 
     static final int REQUEST_IMAGE_CAPTURE = 1;
 
-    public void dispatchTakePictureIntent(){
+    private void dispatchTakePictureIntent() {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        try {
-            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(this,"no es pot obrir la camara",Toast.LENGTH_SHORT).show();
+        // Ensure that there's a camera activity to handle the intent
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            // Create the File where the photo should go
+            File photoFile = null;
+            try {
+                photoFile = getFile();
+            } catch (IOException ex) {
+                // Error occurred while creating the File
+
+            }
+            // Continue only if the File was successfully created
+            if (photoFile != null) {
+                Uri photoURI = FileProvider.getUriForFile(this,
+                        "com.example.android.fileprovider",
+                        photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+            }
         }
     }
 
-
+    protected File getFile() throws IOException{
+        //guardar a un fitxe
+        File path =getApplicationContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES); //para que este en el almacenamiento externo
+        File foto= new File(path,"imatge.jpg");
+        return foto;
+    }
 
 
     @Override
@@ -56,25 +79,17 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         final ImageView imageView = findViewById(R.id.imageView);
 
-        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-            Bundle extras = data.getExtras();
-            Bitmap imageBitmap = (Bitmap) extras.get("data");
-
-            imageView.setImageBitmap(imageBitmap);
-            //guardar a un fitxer
-
-
-            File path =getApplicationContext().getFilesDir();
-            File foto= new File(path,"foto.jpg");
-
-            try {
-                FileOutputStream os = new FileOutputStream(foto);
-                imageBitmap.compress(Bitmap.CompressFormat.JPEG,100,os);
-            }catch (FileNotFoundException fnfe){
-                fnfe.printStackTrace();
-            }
+        Uri fileUri = null;
+        try {
+            fileUri = Uri.fromFile(getFile());
+            imageView.setImageURI(fileUri);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+
+
     }
+
 
 //getexternalfilesdir
 
